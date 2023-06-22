@@ -1,0 +1,5 @@
+ml-env/
+data/cleanMergedData.csv
+data/credits.csv
+data/movies_datset.csv
+__pycache__/
