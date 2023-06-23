@@ -278,5 +278,5 @@ def get_recomendacion(pelicula: str):
     
     """
     entrada = df[0:100]
-    salida = knn_movies(entrada, 863,6)
+    salida = knn_movies(entrada, 862,6)
     return {'peliculas': salida }
