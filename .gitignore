@@ -3,3 +3,4 @@ data/cleanMergedData.csv
 data/credits.csv
 data/movies_datset.csv
 __pycache__/
+requirements_copy.txt
