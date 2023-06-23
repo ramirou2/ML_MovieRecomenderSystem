@@ -277,6 +277,6 @@ def get_recomendacion(pelicula: str):
     """ COMPLETAR DOCSTRING
     
     """
-
-    salida = knn_movies(df, 863,6)
+    entrada = df[0:100]
+    salida = knn_movies(entrada, 863,6)
     return {'peliculas': salida }
