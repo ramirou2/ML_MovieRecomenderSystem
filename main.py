@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+from ml_models import knn_movies
+
 # CARGANDO LOS ARCHIVOS NECESARIOS PARA LOS ENDPOINTS
 df = pd.read_csv('data/cleanMovies.csv', parse_dates = ['release_date'])
 df2 = pd.read_csv('data/cleanCredits.csv')
@@ -53,7 +55,7 @@ meses = {
     "noviembre": 11,
     "diciembre": 12
 }
-@app.get("/peliculas/mes/{mes}", tags=['Peliculas'])
+@app.get("/peliculas/get_month/{mes}", tags=['Peliculas'])
 def cantidad_filmaciones_mes( mes: Mes ):
     """
     Cantidad de filmaciones estrenadas el mes indicado.
@@ -82,9 +84,8 @@ def cantidad_filmaciones_mes( mes: Mes ):
     salida = df[df['release_date'].dt.month == mesNum].release_date.count()
     return {"mes":mes, "peliculas": int(salida) }
 
-
 #Endpoint 2
-@app.get("/peliculas/dia/{dia}", tags=['Peliculas'])
+@app.get("/peliculas/get_month/{dia}", tags=['Peliculas'])
 def cantidad_filmaciones_dia( dia: int = Path(ge=1, le=31) ):
     """
     Cantidad de filmaciones estrenadas el dia indicado, incluyendo todos los meses.
@@ -110,12 +111,12 @@ def cantidad_filmaciones_dia( dia: int = Path(ge=1, le=31) ):
     return {"dia":dia, "peliculas": int(salida) }
 
 #Endpoint 3
-@app.get("/pelicula/popularidad/{titulo}", tags=['Pelicula'])
+@app.get("/pelicula/get_popularidad/{titulo}", tags=['Pelicula'])
 def score_titulo( titulo: str ):
     """
     Score asociada a la pelicula con el titulo indicado.
 
-    Esta función recibe un título de pelicula en idioma ingles y retorna título, el año de estreno y el score asociado.
+    Esta función recibe un título de pelicula en idioma ingles y retorna título, el año de estreno y el score asociado redondeado a 2 decimales.
 
     Parametros
     ----------
@@ -124,28 +125,35 @@ def score_titulo( titulo: str ):
 
     Retorno
     -------
-    int
-        JSON con determinado formato.
+    JSON:
+        {'title':titulo, 'release_year': release_year, 'popularity':popularity}
 
-    Ejemplo
+    Ejemplos
     --------
-    >>> score_titulo('Father of the Bride Part II')
-        La película 'Father of the Bride Part II' fue estrenada en el año 1995 con una popularidad de 8.387519
+    >>> score_titulo('Father of the Bride Part II') {caso de exito} \t
+    >>> {'title':'Father of the Bride Part II', 'release_year': 1995, 'popularity':8.39}
+
+    >>> score_titulo('Father of theBride') {contexto de error o no existencia}  \t
+    >>> {'title':'', 'release_year': '', 'popularity':''}
+
     """
     titulo = titulo.lower()
     coincidencias = df[df['title'] == titulo] 
 
-    salida_df = coincidencias[['title', 'release_year', 'popularity']] 
-
-    salida_json = salida_df.to_json(orient='records') #Guardo cada coincidencia como registro separado
+    if coincidencias.shape[0] > 0:
+        salida_df = coincidencias[['title', 'release_year', 'popularity']].iloc[0]
+        salida_json =  {'title':titulo, 'release_year': int( salida_df['release_year']), 'popularity': round(salida_df['popularity'], 2) } 
+    else:
+        salida_json = {'title':'', 'release_year': '', 'popularity':''}
 
     return salida_json
 
 #Endpoint 4
-@app.get("/pelicula/votos/{titulo}", tags=['Pelicula'])
+@app.get("/pelicula/get_votos/{titulo}", tags=['Pelicula'])
 def votos_titulo( titulo: str ):
     """
-    Cantiad de votos y valor promedio de las votaciones asociada a la pelicula con el titulo indicado.
+    Cantiad de votos y valor promedio de las votaciones asociada a la pelicula con el titulo indicado, en caso de que tenga al menos 2000 valoraciones.
+    Caso contrario, no se devuelve ningun valor.
 
     Esta función recibe un título de pelicula en idioma ingles y retorna título, el año de estreno, la cantidad de votaciones y el valor promedio de las votaciones.
 
@@ -156,25 +164,29 @@ def votos_titulo( titulo: str ):
 
     Retorno
     -------
-    int
-        JSON con determinado formato.
-
+    registro:
+        {'title':titulo, 'release_year': release_year, 'vote_count': vote_count, 'vote_average':vote_average }
     Ejemplo
     --------
-    >>> votor_titulo('Father of the Bride Part II')
-        La película 'Father of the Bride Part II' fue estrenada en el año 1995 con 173 votos y un valor promedio de votaciones de 5.7.
+    >>> votor_titulo('Father of the Bride Part II') {caso de exito} \t
+    >>> {'title':'Father of the Bride Part II', 'release_year': 1995, 'vote_count': 2000, 'vote_average':5.7 } CORREGIR CON UNO QUE SEA REAL
+
+    >>> votor_titulo('Father of the Bride Part II') {contexto de no existencia o de votos insuficientes}  \t
+    >>> {'title':'', 'release_year': '', 'vote_count': '', 'vote_average':'' }
     """
     titulo = titulo.lower()
 
-    coincidencias = df[df['title'] == titulo] 
+    coincidencias = df[df['title'] == titulo]
 
-    salida_df = coincidencias[['title', 'release_year', 'vote_count', 'vote_average']] 
-
-    salida_json = salida_df.to_json(orient='records') #Guardo cada coincidencia como registro separado
+    salida_json = {'title':'', 'release_year': '', 'vote_count': '', 'vote_average':'' }
+    if coincidencias.shape[0] > 0:
+        salida_df = coincidencias[['title', 'release_year', 'vote_count', 'vote_average']].iloc[0] #Me quedo con la primer aparicion
+        if salida_df['vote_count'] >= 2000:
+            salida_json = {'title':titulo, 'release_year': int( salida_df['release_year']), 'vote_count': int(salida_df['vote_count']), 'vote_average':round(salida_df['vote_average'], 2) }        
 
     return salida_json
 
-@app.get("/actor/{actor}", tags=['Actores'])
+@app.get("/actor/get_actor/{actor}", tags=['Actores'])
 def get_actor( actor: str ):
     """
     Éxito del acotor indicado medido a través del retorno. Cantidad de películas que en las que ha participado y el promedio de retorno.
@@ -193,8 +205,11 @@ def get_actor( actor: str ):
 
     Ejemplo
     --------
-    >>> get_actor('Tom Hanks')
-        El actor 'Tom Hanks' ha participado de X cantidad de filmaciones, el mismo ha conseguido un retorno de X con un promedio de X por filmación.
+    >>> get_actor('Tom Hanks') {caso de exito} \t 
+    >>> {'actor':'Tom Hanks', 'cantidad': , 'retorno': , 'retorno_promedio':  }
+
+    >>> get_actor('Pepe El grillo') {caso error o sin existencia} \t
+    >>> {'actor':'', 'cantidad': '', 'retorno':'', 'retorno_promedio': '' }
     """ 
     actor = actor.lower()
     cantidad = 0
@@ -206,11 +221,14 @@ def get_actor( actor: str ):
             cantidad += 1
             retorno += movie['return']
             indices.append(index)
-    if cantidad != 0:
+    if cantidad == 0:
+        salida_json = {'actor':'', 'cantidad': '', 'retorno':'', 'retorno_promedio': '' }
+    else:
         retorno_promedio = retorno / cantidad
-    return {'actor':actor, 'cantidad': cantidad, 'retorno':round(retorno, 2), 'retorno_promedio': round(retorno_promedio, 2) }
+        salida_json = {'actor':actor, 'cantidad': cantidad, 'retorno':round(retorno, 2), 'retorno_promedio': round(retorno_promedio, 2)}
+    return salida_json 
 
-@app.get("/director/{director}", tags=['Directores'])
+@app.get("/director/get_director/{director}", tags=['Directores'])
 def get_director(director: str):
     """
     Éxito del director indicado medido a través del retorno. Peliculas dirigidas con fecha, costo y ganancia individual.
@@ -225,12 +243,15 @@ def get_director(director: str):
     Retorno
     -------
     JSON
-        JSON con determinado formato.
+        { 'director':'director', 'return': round(retorno, 2),  'movies':  [{pelicula1}, {pelicula2} ....]}.
 
     Ejemplo
     --------
-    >>> get_director('')
-        El director 'John Lasseter ' ha dirigido las siguientes peliculas ....
+    >>> get_director('John Lasseter') {caso de exito} \t
+    >>> { 'director':'John Lasseter', 'return': round(retorno, 2),  'movies': [{pelicula1}, {pelicula2} ....]}
+
+    >>> get_director('Pepe el grillo') {caso de inexistencia} \t
+    >>> { 'director':'', 'return': '',  'movies': ''}
     """
     director = director.lower()
     retorno = 0.0
@@ -240,9 +261,22 @@ def get_director(director: str):
             indices.append(index)
             retorno += movie['return']
 
-    peliculas = df3.iloc[indices]
-    peliculas = peliculas[['title', 'release_date', 'budget', 'revenue']]
-    # Si bien el formato ya esta en datetime.date, el to_json necesita el uso de strftime para otorgar la salida correcta, agregar en el procesamiento previo
-    peliculas["release_date"] = peliculas["release_date"].dt.strftime('%Y-%m-%d')
-    salida_json = peliculas.to_json(orient='records')
-    return{ 'director':director, 'return': round(retorno, 2),  'movies': salida_json}
+    if len(indices) > 0:
+        peliculas = df3.iloc[indices]
+        peliculas = peliculas[['title', 'release_date', 'budget', 'revenue']]
+        # Si bien el formato ya esta en datetime.date, el to_json necesita el uso de strftime para otorgar la salida correcta, agregar en el procesamiento previo
+        peliculas["release_date"] = peliculas["release_date"].dt.strftime('%Y-%m-%d')
+        salida_json = peliculas.to_json(orient='records')
+        salida = { 'director':director, 'return': round(retorno, 2),  'movies': salida_json}
+    else:
+        salida = { 'director':'', 'return': '',  'movies': ''}
+    return salida
+
+@app.get("/recomendacion/get_recomendacion/{pelicula}", tags=['Sistema de Recomendacion'])
+def get_recomendacion(pelicula: str):
+    """ COMPLETAR DOCSTRING
+    
+    """
+
+    salida = knn_movies(df, 863,6)
+    return {'peliculas': salida }
