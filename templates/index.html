@@ -1,0 +1,24 @@
+<html>
+<head>
+    <title>API de Filmaciones</title>
+</head>
+<body>
+    <h1>API de Filmaciones</h1>
+    <form action="/consultar" method="post">
+        {% for funcion in funciones %}
+            <input type="radio" name="funcion" value="{{ funcion.nombre }}" onchange="setDefaultPlaceholder('{{ funcion.parametro_predeterminado }}')">
+            {{ funcion.nombre|replace("_", " ") }}<br>
+        {% endfor %}
+        <input type="text" name="parametro" id="parametro" placeholder="Ingrese el parámetro">
+        <input type="submit" value="Consultar">
+    </form>
+
+    <script>
+        function setDefaultPlaceholder(valor) {
+            var parametroInput = document.getElementById('parametro');
+            parametroInput.placeholder = valor  ;
+            parametroInput.value = valor;
+        }
+    </script>
+</body>
+</html>

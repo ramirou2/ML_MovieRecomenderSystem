@@ -1,6 +1,6 @@
-from fastapi import FastAPI, Path, Query, Body
+from fastapi import FastAPI, Path, Query, Body, Form, Response, Request
 from pydantic import BaseModel, Field 
-from typing import Optional 
+from typing import Optional, List
 from enum import Enum
 import pandas as pd
 import numpy as np
@@ -8,13 +8,42 @@ from datetime import datetime
 
 from ml_models import matriz_similitud, obtener_recomendaciones
 
+from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.templating import Jinja2Templates
 
-
+templates = Jinja2Templates(directory="templates")
 
 #DATA GENERAL DE LA API
 app = FastAPI()
 app.title = "Movies API - ML MoviesRecommenderSystem"
 app.version = "1.0.0"
+
+@app.get("/", response_class=HTMLResponse)
+async def mostrar_portada(request: Request):
+    funciones = [
+        {"nombre": "cantidad_filmaciones_mes", "parametro_predeterminado": "enero"},
+        {"nombre": "cantidad_filmaciones_dia", "parametro_predeterminado": "lunes"},
+        {"nombre": "score_titulo", "parametro_predeterminado": "Toy Story"},
+        {"nombre": "get_actor", "parametro_predeterminado": "Tom Hanks"},
+        {"nombre": "get_director", "parametro_predeterminado": "John Lasseter"},
+        {"nombre": "get_recomendacion", "parametro_predeterminado": "Jumanji"},
+    ]
+    return templates.TemplateResponse("index.html", {"funciones": funciones, "request": request})
+
+
+
+
+@app.post("/consultar")
+async def consultar(request: Request, funcion: str = Form(...), parametro: str = Form(...)):
+    if funcion in  ["cantidad_filmaciones_mes", "cantidad_filmaciones_dia", "score_titulo", "get_actor", "get_director", "get_recomendacion"]:
+        try:
+            parametro = parametro.lower()
+            resultado = await eval(f"{funcion}('{parametro}')")
+            return resultado
+        except Exception as e:
+            return {"Error": str(e), "Type": "Entrada incorrecta o desconocida, vea /docs para mas detalles"}
+    else:
+        return {"error": "Función no válida"}
 
 #INICIO DE LA API
 @app.on_event("startup")
@@ -34,12 +63,6 @@ async def startup_event():
     entrada_ml = df[0:2000][['title', 'genres', 'overview']]
     global similitudes
     similitudes = matriz_similitud(entrada_ml)
-
-
-#Root API
-@app.get("/")
-def index():
-    return {"message": ""}
 
 #Endpoint 1
 class Mes(str, Enum):
