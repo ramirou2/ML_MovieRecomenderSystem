@@ -6,12 +6,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
-from ml_models import knn_movies
+from ml_models import matriz_similitud, obtener_recomendaciones
 
 # CARGANDO LOS ARCHIVOS NECESARIOS PARA LOS ENDPOINTS
 df = pd.read_csv('data/cleanMovies.csv', parse_dates = ['release_date'])
 df2 = pd.read_csv('data/cleanCredits.csv')
-df3 = pd.merge(df, df2, on='id', how='left')
+df3 = pd.merge(df, df2, on='id', how='inner')
 # Casteo de datos a tipo lista para posterior manipulacion
 df3['cast'] = df3['cast'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
 df3['director'] = df3['director'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
@@ -41,6 +41,7 @@ class Mes(str, Enum):
     octubre = "octubre"
     noviembre = "noviembre"
     diciembre = "diciembre"
+
 meses = {
     "enero": 1,
     "febrero": 2,
@@ -55,6 +56,7 @@ meses = {
     "noviembre": 11,
     "diciembre": 12
 }
+
 @app.get("/peliculas/get_month/{mes}", tags=['Peliculas'])
 def cantidad_filmaciones_mes( mes: Mes ):
     """
@@ -64,29 +66,48 @@ def cantidad_filmaciones_mes( mes: Mes ):
 
     Parametros
     ----------
-    mes : int
+    mes : str
 
         mes en idioma español enero,febrero,marzo,...
 
     Retorno
     -------
-    int:
+    JSON:
 
-        Cantidad de peilculas estrenadas en el mes numero ''mes''.
+        {"month":mes, "movies": int(salida) }
     
     Ejemplo
     --------
     >>> cantidad_filmaciones_mes(febrero)
 
-        X cantidad de películas fueron estrenadas en el mes de febrero
+        { "month": "enero", "movies": 5909 }
     """
     mesNum = meses[mes]
     salida = df[df['release_date'].dt.month == mesNum].release_date.count()
-    return {"mes":mes, "peliculas": int(salida) }
+    return {"month":mes, "movies": int(salida) }
 
 #Endpoint 2
-@app.get("/peliculas/get_month/{dia}", tags=['Peliculas'])
-def cantidad_filmaciones_dia( dia: int = Path(ge=1, le=31) ):
+class Dia(str, Enum):
+    lunes = 'lunes'
+    martes = 'martes'
+    miercoles = 'miércoles'
+    jueves = 'jueves'
+    viernes = 'viernes'
+    sabado = 'sábado'
+    domingo = 'domingo'
+
+dias = {
+    'lunes': 'Monday',
+    'martes': 'Tuesday',
+    'miércoles': 'Wednesday',
+    'jueves': 'Thursday',
+    'viernes': 'Friday',
+    'sábado': 'Saturday',
+    'domingo': 'Sunday'
+}
+
+@app.get("/peliculas/get_day/{dia}", tags=['Peliculas'])
+def cantidad_filmaciones_dia( dia: Dia ):
     """
     Cantidad de filmaciones estrenadas el dia indicado, incluyendo todos los meses.
 
@@ -94,21 +115,25 @@ def cantidad_filmaciones_dia( dia: int = Path(ge=1, le=31) ):
 
     Parametros
     ----------
-    dia : int
-        dia en idioma español 1-31
+    dia : str
+
+        dia en idioma español lunes, martes, miércoles, jueves, viernes, sábado, domingo
 
     Retorno
     -------
-    int
-        Cantidad de peilculas estrenadas en el mes de ''mes''.
+    JSON
+
+        {"day":dia, "movies": int(salida) }
 
     Ejemplo
     --------
-    >>> cantidad_filmaciones_dia(30)
-        X cantidad de películas fueron estrenadas en los días 30
+    >>> cantidad_filmaciones_dia(lunes)
+        { "dia": "lunes", "peliculas": 3500 }
     """
-    salida = df[df['release_date'].dt.day == dia].release_date.count()
-    return {"dia":dia, "peliculas": int(salida) }
+    df['dia'] = df['release_date'].apply(lambda x: x.strftime('%A'))
+    salida = df[df['dia'] == dias[dia]].dia.count()
+    
+    return {"day":dia, "movies": int(salida) }
 
 #Endpoint 3
 @app.get("/pelicula/get_popularidad/{titulo}", tags=['Pelicula'])
@@ -121,11 +146,13 @@ def score_titulo( titulo: str ):
     Parametros
     ----------
     titulo : str
+
         titulo en idioma ingles
 
     Retorno
     -------
     JSON:
+
         {'title':titulo, 'release_year': release_year, 'popularity':popularity}
 
     Ejemplos
@@ -137,10 +164,10 @@ def score_titulo( titulo: str ):
     >>> {'title':'', 'release_year': '', 'popularity':''}
 
     """
-    titulo = titulo.lower()
+    titulo = titulo.title()
     coincidencias = df[df['title'] == titulo] 
 
-    if coincidencias.shape[0] > 0:
+    if not(coincidencias.empty):
         salida_df = coincidencias[['title', 'release_year', 'popularity']].iloc[0]
         salida_json =  {'title':titulo, 'release_year': int( salida_df['release_year']), 'popularity': round(salida_df['popularity'], 2) } 
     else:
@@ -160,26 +187,28 @@ def votos_titulo( titulo: str ):
     Parametros
     ----------
     titulo : str
+
         titulo en idioma ingles
 
     Retorno
     -------
     registro:
+
         {'title':titulo, 'release_year': release_year, 'vote_count': vote_count, 'vote_average':vote_average }
     Ejemplo
     --------
-    >>> votor_titulo('Father of the Bride Part II') {caso de exito} \t
-    >>> {'title':'Father of the Bride Part II', 'release_year': 1995, 'vote_count': 2000, 'vote_average':5.7 } CORREGIR CON UNO QUE SEA REAL
+    >>> votor_titulo('Jumanji') {caso de exito} \t
+    >>> {'title':'Jumanji', 'release_year:': 1995, 'vote_count': 2413, 'vote_average':6.9 } 
 
     >>> votor_titulo('Father of the Bride Part II') {contexto de no existencia o de votos insuficientes}  \t
     >>> {'title':'', 'release_year': '', 'vote_count': '', 'vote_average':'' }
     """
-    titulo = titulo.lower()
+    titulo = titulo.title()
 
     coincidencias = df[df['title'] == titulo]
 
     salida_json = {'title':'', 'release_year': '', 'vote_count': '', 'vote_average':'' }
-    if coincidencias.shape[0] > 0:
+    if not(coincidencias.empty):
         salida_df = coincidencias[['title', 'release_year', 'vote_count', 'vote_average']].iloc[0] #Me quedo con la primer aparicion
         if salida_df['vote_count'] >= 2000:
             salida_json = {'title':titulo, 'release_year': int( salida_df['release_year']), 'vote_count': int(salida_df['vote_count']), 'vote_average':round(salida_df['vote_average'], 2) }        
@@ -196,36 +225,36 @@ def get_actor( actor: str ):
     Parametros
     ----------
     nombreActor : str
+
         Nombre completo del actor.
 
     Retorno
     -------
     JSON
-        JSON con determinado formato.
+
+        {'actor':'Actor', 'cantidad': cantidad peliculas, 'retorno_promedio': round(avg(retorno), 2)  , 'retorno_total': round(sum(retorno), 2)}
 
     Ejemplo
     --------
     >>> get_actor('Tom Hanks') {caso de exito} \t 
-    >>> {'actor':'Tom Hanks', 'cantidad': , 'retorno': , 'retorno_promedio':  }
+    >>> {'actor':'Tom Hanks', 'cantidad': 71 , 'retorno_promedio':  2.52,'retorno_total': 3.96}
 
     >>> get_actor('Pepe El grillo') {caso error o sin existencia} \t
-    >>> {'actor':'', 'cantidad': '', 'retorno':'', 'retorno_promedio': '' }
+    >>> {'actor':'', 'cantidad': '', 'retorno_promedio': '' , 'retorno_total': ''}
     """ 
-    actor = actor.lower()
-    cantidad = 0
-    retorno = 0.0
-    retorno_promedio = 0.0
+    actor = actor.title()
     indices = []
     for index, movie in df3.iterrows():
         if actor in movie['cast']:
-            cantidad += 1
-            retorno += movie['return']
             indices.append(index)
-    if cantidad == 0:
-        salida_json = {'actor':'', 'cantidad': '', 'retorno':'', 'retorno_promedio': '' }
+
+    if len(indices) == 0:
+        salida_json = {'actor':'', 'cantidad': '', 'retorno_promedio': '' , 'retorno_total':''}
     else:
-        retorno_promedio = retorno / cantidad
-        salida_json = {'actor':actor, 'cantidad': cantidad, 'retorno':round(retorno, 2), 'retorno_promedio': round(retorno_promedio, 2)}
+        coincidencias = df3.iloc[indices]
+        retorno_promedio = coincidencias['return'].mean()
+        retorno_total = coincidencias['revenue'].sum() / coincidencias['budget'].sum()
+        salida_json = {'actor':actor, 'cantidad': len(indices), 'retorno_promedio': round(retorno_promedio, 2), 'retorno_total':round(retorno_total, 2)}
     return salida_json 
 
 @app.get("/director/get_director/{director}", tags=['Directores'])
@@ -237,46 +266,90 @@ def get_director(director: str):
 
     Parametros
     ----------
-    nombreDirector : str
-        Nombre completo del director.
+    director : str
+
+        nombre completo del director
+
 
     Retorno
-    -------
+    ----------
     JSON
+
         { 'director':'director', 'return': round(retorno, 2),  'movies':  [{pelicula1}, {pelicula2} ....]}.
 
     Ejemplo
     --------
     >>> get_director('John Lasseter') {caso de exito} \t
-    >>> { 'director':'John Lasseter', 'return': round(retorno, 2),  'movies': [{pelicula1}, {pelicula2} ....]}
+    >>> { "director": "John Lasseter", "return": 4.03,
+        "movies": [ { "title": "Toy Story", "release_date": "1995-10-30", "budget": 30000000, "revenue": 373554033 },
+        { "title": "A Bug'S Life", "release_date": "1998-11-25", "budget": 120000000, "revenue": 363258859 }, ...]
 
     >>> get_director('Pepe el grillo') {caso de inexistencia} \t
     >>> { 'director':'', 'return': '',  'movies': ''}
     """
-    director = director.lower()
-    retorno = 0.0
+    director = director.title()
     indices = []
     for index, movie in df3.iterrows():
         if director in movie['director']:
             indices.append(index)
-            retorno += movie['return']
 
     if len(indices) > 0:
-        peliculas = df3.iloc[indices]
-        peliculas = peliculas[['title', 'release_date', 'budget', 'revenue']]
-        # Si bien el formato ya esta en datetime.date, el to_json necesita el uso de strftime para otorgar la salida correcta, agregar en el procesamiento previo
-        peliculas["release_date"] = peliculas["release_date"].dt.strftime('%Y-%m-%d')
-        salida_json = peliculas.to_json(orient='records')
-        salida = { 'director':director, 'return': round(retorno, 2),  'movies': salida_json}
+        peliculas = df3.iloc[indices][['title', 'release_date', 'budget', 'revenue']]
+        # peliculas = peliculas[['title', 'release_date', 'budget', 'revenue']]
+        retorno_total = peliculas['revenue'].sum() / peliculas['budget'].sum()
+        titulos = peliculas['title'].to_list()
+        fechas_estreno = peliculas['release_date'].dt.date.to_list()
+        presupuesto = peliculas['budget'].to_list()
+        ganancia = peliculas['revenue'].to_list()
+        
+        #SALIDA EN VERSION LISTAS
+        #salida = { 'director':director, 'return': round(retorno_total, 2),  'titles': titulos, 'release_dates': fechas_estreno, 'budgets': presupuesto, 'revenues':ganancia}
+        pelis_json = [{'title': e1, 'release_date': e2, 'budget': e3, 'revenue': e4} for e1, e2, e3,e4 in zip(titulos, fechas_estreno, presupuesto, ganancia)]
+        
+        salida = { 'director':director, 'return': round(retorno_total, 2),  'movies': pelis_json}
     else:
-        salida = { 'director':'', 'return': '',  'movies': ''}
+        salida = { 'director':'', 'return': '',  'titles': '', 'release_dates': '', 'budgets': '', 'revenues': ''}
     return salida
 
-@app.get("/recomendacion/get_recomendacion/{pelicula}", tags=['Sistema de Recomendacion'])
-def get_recomendacion(pelicula: str):
-    """ COMPLETAR DOCSTRING
+@app.get("/recomendacion/get_recomendacion/{titulo}", tags=['Sistema de Recomendacion'])
+def get_recomendacion(titulo: str):
+    """ 
+    Recomendación de las 5 peliculas más similares al titulo ingresado.
+    Se recibe el titulo de una pelicula en idioma ingles y se devuelve una lista ded nombres de las 5 peliculas más similares recomendada por el sistema.
+
+    Parametros
+    ----------
+    titulo : str
+
+        Titulo en ingles de la pelicula.
+
+    Retorno
+    -------
+    JSON
+
+        { 'titles':['pelicula1', 'pelicula2', 'pelicula3', 'pelicula4' , 'pelicula5' ] }.
+
+    Ejemplo
+    --------
+    >>> get_recomendacion('Jumanji') {caso de exito} \t
+    >>> 
+
+    >>> get_director('Pepe el grillo') {caso de inexistencia} \t
+    >>> { 'titles': []}
     
     """
-    entrada = df[0:100]
-    salida = knn_movies(entrada, 862,6)
-    return {'peliculas': salida }
+    
+    titulo = titulo.title()
+    coincidencias = df[df['title'] == titulo]
+    if coincidencias.empty:
+        salida = {'title': '',  'recommended titles': []}
+    else:
+        indice = coincidencias.index[0]
+
+        entrada = df[0:2000][['title', 'genres', 'overview']]
+        similitudes = matriz_similitud(entrada)
+        recomendadas = obtener_recomendaciones(df = entrada, matriz_sim = similitudes, indice_pelicula = indice,top_n = 5).tolist()
+
+
+        salida = {'title': titulo, 'recommended titles': recomendadas}
+    return salida
