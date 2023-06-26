@@ -8,19 +8,33 @@ from datetime import datetime
 
 from ml_models import matriz_similitud, obtener_recomendaciones
 
-# CARGANDO LOS ARCHIVOS NECESARIOS PARA LOS ENDPOINTS
-df = pd.read_csv('data/cleanMovies.csv', parse_dates = ['release_date'])
-df2 = pd.read_csv('data/cleanCredits.csv')
-df3 = pd.merge(df, df2, on='id', how='inner')
-# Casteo de datos a tipo lista para posterior manipulacion
-df3['cast'] = df3['cast'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
-df3['director'] = df3['director'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
+
 
 
 #DATA GENERAL DE LA API
 app = FastAPI()
-app.title = "Titulo de la API"
-app.version = "Version de la APi"
+app.title = "Movies API - ML MoviesRecommenderSystem"
+app.version = "1.0.0"
+
+#INICIO DE LA API
+@app.on_event("startup")
+async def startup_event():
+    # CARGANDO LOS ARCHIVOS NECESARIOS PARA LOS ENDPOINTS
+    global df
+    global df2
+    global df3
+    df = pd.read_csv('data/cleanMovies.csv', parse_dates = ['release_date'])
+    df2 = pd.read_csv('data/cleanCredits.csv')
+    df3 = pd.merge(df, df2, on='id', how='inner')
+    # Casteo de datos a tipo lista para posterior manipulacion
+    df3['cast'] = df3['cast'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
+    df3['director'] = df3['director'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
+
+    global entrada_ml
+    entrada_ml = df[0:2000][['title', 'genres', 'overview']]
+    global similitudes
+    similitudes = matriz_similitud(entrada_ml)
+
 
 #Root API
 @app.get("/")
@@ -58,7 +72,7 @@ meses = {
 }
 
 @app.get("/peliculas/get_month/{mes}", tags=['Peliculas'])
-def cantidad_filmaciones_mes( mes: Mes ):
+async def cantidad_filmaciones_mes( mes: Mes ):
     """
     Cantidad de filmaciones estrenadas el mes indicado.
 
@@ -107,7 +121,7 @@ dias = {
 }
 
 @app.get("/peliculas/get_day/{dia}", tags=['Peliculas'])
-def cantidad_filmaciones_dia( dia: Dia ):
+async def cantidad_filmaciones_dia( dia: Dia ):
     """
     Cantidad de filmaciones estrenadas el dia indicado, incluyendo todos los meses.
 
@@ -137,7 +151,7 @@ def cantidad_filmaciones_dia( dia: Dia ):
 
 #Endpoint 3
 @app.get("/pelicula/get_popularidad/{titulo}", tags=['Pelicula'])
-def score_titulo( titulo: str ):
+async def score_titulo( titulo: str ):
     """
     Score asociada a la pelicula con el titulo indicado.
 
@@ -177,7 +191,7 @@ def score_titulo( titulo: str ):
 
 #Endpoint 4
 @app.get("/pelicula/get_votos/{titulo}", tags=['Pelicula'])
-def votos_titulo( titulo: str ):
+async def votos_titulo( titulo: str ):
     """
     Cantiad de votos y valor promedio de las votaciones asociada a la pelicula con el titulo indicado, en caso de que tenga al menos 2000 valoraciones.
     Caso contrario, no se devuelve ningun valor.
@@ -216,7 +230,7 @@ def votos_titulo( titulo: str ):
     return salida_json
 
 @app.get("/actor/get_actor/{actor}", tags=['Actores'])
-def get_actor( actor: str ):
+async def get_actor( actor: str ):
     """
     Éxito del acotor indicado medido a través del retorno. Cantidad de películas que en las que ha participado y el promedio de retorno.
 
@@ -258,7 +272,7 @@ def get_actor( actor: str ):
     return salida_json 
 
 @app.get("/director/get_director/{director}", tags=['Directores'])
-def get_director(director: str):
+async def get_director(director: str):
     """
     Éxito del director indicado medido a través del retorno. Peliculas dirigidas con fecha, costo y ganancia individual.
 
@@ -312,7 +326,7 @@ def get_director(director: str):
     return salida
 
 @app.get("/recomendacion/get_recomendacion/{titulo}", tags=['Sistema de Recomendacion'])
-def get_recomendacion(titulo: str):
+async def get_recomendacion(titulo: str):
     """ 
     Recomendación de las 5 peliculas más similares al titulo ingresado.
     Se recibe el titulo de una pelicula en idioma ingles y se devuelve una lista ded nombres de las 5 peliculas más similares recomendada por el sistema.
@@ -346,9 +360,7 @@ def get_recomendacion(titulo: str):
     else:
         indice = coincidencias.index[0]
 
-        entrada = df[0:2000][['title', 'genres', 'overview']]
-        similitudes = matriz_similitud(entrada)
-        recomendadas = obtener_recomendaciones(df = entrada, matriz_sim = similitudes, indice_pelicula = indice,top_n = 5).tolist()
+        recomendadas = obtener_recomendaciones(df = entrada_ml, matriz_sim = similitudes, indice_pelicula = indice,top_n = 5).tolist()
 
 
         salida = {'title': titulo, 'recommended titles': recomendadas}
