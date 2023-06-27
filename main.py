@@ -1,14 +1,10 @@
-from fastapi import FastAPI, Path, Query, Body, Form, Response, Request
-from pydantic import BaseModel, Field 
-from typing import Optional, List
-from enum import Enum
 import pandas as pd
-import numpy as np
-from datetime import datetime
-
+#Script propio de ML
 from ml_models import matriz_similitud, obtener_recomendaciones
-
-from fastapi.responses import HTMLResponse, FileResponse
+# Librerias necesarias para la portada y la API
+from fastapi import FastAPI, Form, Request
+from enum import Enum
+from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 templates = Jinja2Templates(directory="templates")
@@ -18,24 +14,35 @@ app = FastAPI()
 app.title = "Movies API - ML MoviesRecommenderSystem"
 app.version = "1.0.0"
 
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# INTERFAZ INICIAL, PORTADA CON CASOS DE EJEMPLOS
 @app.get("/", response_class=HTMLResponse)
 async def mostrar_portada(request: Request):
     funciones = [
-        {"nombre": "cantidad_filmaciones_mes", "parametro_predeterminado": "enero"},
-        {"nombre": "cantidad_filmaciones_dia", "parametro_predeterminado": "lunes"},
-        {"nombre": "score_titulo", "parametro_predeterminado": "Toy Story"},
-        {"nombre": "get_actor", "parametro_predeterminado": "Tom Hanks"},
-        {"nombre": "get_director", "parametro_predeterminado": "John Lasseter"},
-        {"nombre": "get_recomendacion", "parametro_predeterminado": "Jumanji"},
+        {"nombre": "PELICULAS POR MES", "parametro_predeterminado": "enero"},
+        {"nombre": "PELICULAS POR DIA", "parametro_predeterminado": "lunes"},
+        {"nombre": "POPULARIDAD DEL TITULO", "parametro_predeterminado": "Toy Story"},
+        {"nombre": "VOTOS DEL TITULO", "parametro_predeterminado": "Jumanji"},
+        {"nombre": "INFORMACION DE ACTOR", "parametro_predeterminado": "Tom Hanks"},
+        {"nombre": "INFORMACION DE DIRECTOR", "parametro_predeterminado": "John Lasseter"},
+        {"nombre": "SISTEMA DE RECOMENDACION", "parametro_predeterminado": "Jumanji"},
     ]
     return templates.TemplateResponse("index.html", {"funciones": funciones, "request": request})
 
-
-
+dicFunc = {"PELICULAS POR MES": "cantidad_filmaciones_mes",
+            "PELICULAS POR DIA": "cantidad_filmaciones_dia",
+            "POPULARIDAD DEL TITULO": "score_titulo",
+            "VOTOS DEL TITULO":"votos_titulo",
+            "INFORMACION DE ACTOR":"get_actor",
+            "INFORMACION DE DIRECTOR":"get_director",
+            "SISTEMA DE RECOMENDACION":"get_recomendacion"}
 
 @app.post("/consultar")
 async def consultar(request: Request, funcion: str = Form(...), parametro: str = Form(...)):
-    if funcion in  ["cantidad_filmaciones_mes", "cantidad_filmaciones_dia", "score_titulo", "get_actor", "get_director", "get_recomendacion"]:
+    funcion = dicFunc[funcion]
+    if funcion in dicFunc.values():
         try:
             parametro = parametro.lower()
             resultado = await eval(f"{funcion}('{parametro}')")
@@ -59,8 +66,10 @@ async def startup_event():
     df3['cast'] = df3['cast'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
     df3['director'] = df3['director'].apply(lambda x: eval(x) if pd.notnull(x) else list([]))
 
+    #ENTRADA REDUCIDA PARA EL SISTEMA DE ML
     global entrada_ml
-    entrada_ml = df[0:2000][['title', 'genres', 'overview']]
+    entrada_ml = df[0:5000][['title', 'genres', 'overview']]
+    entrada_ml.reset_index
     global similitudes
     similitudes = matriz_similitud(entrada_ml)
 
@@ -248,10 +257,15 @@ async def votos_titulo( titulo: str ):
     if not(coincidencias.empty):
         salida_df = coincidencias[['title', 'release_year', 'vote_count', 'vote_average']].iloc[0] #Me quedo con la primer aparicion
         if salida_df['vote_count'] >= 2000:
-            salida_json = {'title':titulo, 'release_year': int( salida_df['release_year']), 'vote_count': int(salida_df['vote_count']), 'vote_average':round(salida_df['vote_average'], 2) }        
+            salida_json = {'title':titulo, 'release_year': int( salida_df['release_year']), 'vote_count': int(salida_df['vote_count']), 'vote_average':round(salida_df['vote_average'], 2) } 
+        else:
+            salida_json = {'title': titulo, 'message': 'No supera los 2000 votos minimos' }
+    else:
+        salida_json = {'title': titulo, 'message': 'No existe en el DataSet actual' }
 
     return salida_json
 
+#Endpoint 5
 @app.get("/actor/get_actor/{actor}", tags=['Actores'])
 async def get_actor( actor: str ):
     """
@@ -290,10 +304,12 @@ async def get_actor( actor: str ):
     else:
         coincidencias = df3.iloc[indices]
         retorno_promedio = coincidencias['return'].mean()
-        retorno_total = coincidencias['revenue'].sum() / coincidencias['budget'].sum()
+        retorno_total = coincidencias['return'].sum() # Asi se pidio en las consultas el retorno total
+        #retorno_total = coincidencias['revenue'].sum() / coincidencias['budget'].sum()
         salida_json = {'actor':actor, 'cantidad': len(indices), 'retorno_promedio': round(retorno_promedio, 2), 'retorno_total':round(retorno_total, 2)}
     return salida_json 
 
+#Endpoint 6
 @app.get("/director/get_director/{director}", tags=['Directores'])
 async def get_director(director: str):
     """
@@ -331,9 +347,9 @@ async def get_director(director: str):
             indices.append(index)
 
     if len(indices) > 0:
-        peliculas = df3.iloc[indices][['title', 'release_date', 'budget', 'revenue']]
-        # peliculas = peliculas[['title', 'release_date', 'budget', 'revenue']]
-        retorno_total = peliculas['revenue'].sum() / peliculas['budget'].sum()
+        peliculas = df3.iloc[indices][['title', 'release_date', 'budget', 'revenue', 'return']]
+        retorno_total = peliculas['return'].sum() # --> Así se pidió en las consultas
+        #retorno_total = peliculas['revenue'].sum() / peliculas['budget'].sum() 
         titulos = peliculas['title'].to_list()
         fechas_estreno = peliculas['release_date'].dt.date.to_list()
         presupuesto = peliculas['budget'].to_list()
@@ -348,6 +364,7 @@ async def get_director(director: str):
         salida = { 'director':'', 'return': '',  'titles': '', 'release_dates': '', 'budgets': '', 'revenues': ''}
     return salida
 
+#Sistema de recomendacion
 @app.get("/recomendacion/get_recomendacion/{titulo}", tags=['Sistema de Recomendacion'])
 async def get_recomendacion(titulo: str):
     """ 
@@ -377,14 +394,13 @@ async def get_recomendacion(titulo: str):
     """
     
     titulo = titulo.title()
-    coincidencias = df[df['title'] == titulo]
+    coincidencias = entrada_ml[entrada_ml['title'] == titulo]
     if coincidencias.empty:
         salida = {'title': '',  'recommended titles': []}
     else:
         indice = coincidencias.index[0]
 
         recomendadas = obtener_recomendaciones(df = entrada_ml, matriz_sim = similitudes, indice_pelicula = indice,top_n = 5).tolist()
-
 
         salida = {'title': titulo, 'recommended titles': recomendadas}
     return salida

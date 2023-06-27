@@ -32,7 +32,7 @@ def matriz_similitud(df):
     """
 
     #Se genera la columa con el texto de entrada
-    df['texto_combinado'] = df['genres'].apply(lambda x: ' '.join(x)) + ' ' + df['title'] + ' ' + df['overview']
+    df['texto_combinado'] = df['genres'].apply(lambda x: ' '.join(x)) + ' ' + df['title']   + ' ' + df['overview']
     #Elimino los signos de puntuacion
     df['texto_combinado'] = df['texto_combinado'].apply( lambda x: re.sub(r'[^\w\s]', '', x) if pd.notnull(x) else '' )
 
@@ -89,16 +89,17 @@ def obtener_recomendaciones(indice_pelicula, matriz_sim, df, top_n=5):
 
     #Me quedo con los titulos y la similitud
     top_movies = df['title'].iloc[top_indices].values
-
-    return top_movies
+    # scores = sim_scores[1:top_n+1]
+    return top_movies #, top_indices, scores
 
 
 
 if __name__ == '__main__':
     df = pd.read_csv('data/cleanMovies.csv')
     df['genres'] = df.genres.apply( lambda x: eval(x))
-
-    sim_matrix = matriz_similitud(df[0:5000])
-
-    print(obtener_recomendaciones( 863,sim_matrix, df[0:5000],5 ))
+    indice = df[df['title'] == 'Jumanji' ].index[0]
+    sim_matrix = matriz_similitud(df[0:20000])
+    print(df.iloc[indice][['title', 'genres']])
+    print(obtener_recomendaciones( indice,sim_matrix, df[0:20000],5 ))
+    print(df.iloc[[13337, 15987, 6160, 9495, 8795]][['title', 'genres']])
 

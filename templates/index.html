@@ -1,24 +1,141 @@
 <html>
 <head>
     <title>API de Filmaciones</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.2.0/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .logo-container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            width: 50px;
+            height: 50px;
+            margin-left: 10px;
+        }
+        .logo img {
+            width: 100%;
+            height: 100%;
+        }
+        h1 {
+            font-size: 32px;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+        .function-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+            font-size: 20px;
+            background-color: #f8f9fa;
+        }
+        .function-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .project-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;
+        }
+        .project-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .project-content {
+            font-size: 16px;
+        }
+        .result-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+            background-color: #f8f9fa;white-space: pre-wrap;
+    }
+    .result-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-    <h1>API de Filmaciones</h1>
-    <form action="/consultar" method="post">
-        {% for funcion in funciones %}
-            <input type="radio" name="funcion" value="{{ funcion.nombre }}" onchange="setDefaultPlaceholder('{{ funcion.parametro_predeterminado }}')">
-            {{ funcion.nombre|replace("_", " ") }}<br>
-        {% endfor %}
-        <input type="text" name="parametro" id="parametro" placeholder="Ingrese el parámetro">
-        <input type="submit" value="Consultar">
-    </form>
-
-    <script>
-        function setDefaultPlaceholder(valor) {
-            var parametroInput = document.getElementById('parametro');
-            parametroInput.placeholder = valor  ;
-            parametroInput.value = valor;
-        }
-    </script>
-</body>
-</html>
+    <div class="container">
+        <div class="logo-container">
+            <div class="logo">
+                <a href="https://www.linkedin.com/in/gaston-luna-paez-a528a91a6/">
+                    <img src="/static/linkedin-logo.png" alt="LinkedIn">
+                </a>
+            </div>
+            <div class="logo">
+                <a href="https://github.com/ramirou2/">
+                    <img src="/static/github-logo.png" alt="GitHub">
+                </a>
+            </div>
+        </div>
+        <h1>API de Filmaciones</h1>
+        <div class="function-box">
+            <div class="function-title">Funciones</div>
+            <form action="/consultar" method="post">
+                {% for funcion in funciones %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="funcion" value="{{ funcion.nombre }}" onchange="setDefaultPlaceholder('{{ funcion.parametro_predeterminado }}')">
+                        <label class="form-check-label">{{ funcion.nombre|replace("_", " ") }}</label>
+                    </div>
+                {% endfor %}
+                <input type="text" name="parametro" id="parametro" class="form-control" placeholder="Ingrese el parámetro">
+                <input type="submit" value="Consultar" class="btn btn-primary mt-3">
+            </form>
+        </div>
+        <div class="project-box">
+            <div class="project-title">Salida</div>
+            <div id="resultado" class="result-output"></div>
+        </div>
+        <div class="project-box">
+            <div class="project-title">Sobre el Proyecto</div>
+            <div class="project-content">
+                Aquí puedes agregar información sobre el proyecto y sus características.
+            </div>
+        </div>
+        <div class="project-box">
+            <div class="project-title">Sobre Mí</div>
+            <div class="project-content">
+                Aquí puedes agregar información sobre ti y tus habilidades relacionadas con el proyecto.
+            </div>
+        </div>
+        </div>
+        
+        <script>
+            function setDefaultPlaceholder(valor) {
+                var parametroInput = document.getElementById('parametro');
+                parametroInput.placeholder = "Ingrese el parámetro (" + valor + ")";
+                parametroInput.value = valor;
+            }
+            
+            document.querySelector('form').addEventListener('submit', async function(event) {
+                event.preventDefault();
+                var formData = new FormData(this);
+                var response = await fetch('/consultar', {
+                    method: 'POST',
+                    body: formData
+                });
+                var data = await response.json();
+                document.getElementById('resultado').innerText = JSON.stringify(data);
+            });
+        </script>
+        
+        </body>
+        </html>
+        
