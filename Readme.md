@@ -13,13 +13,13 @@ EL objetivo del proyecto es la obtención de un **MVP** (_Minimum Viable Product
 Detalles de la propuesta:
 
 **`Transformación y limpieza del *dataset* original`**.
-* Toolbox: Python, Numpy, Pandas,  Jupyter Notebook
+* Toolbox: Python, Numpy, Pandas,  Jupyter Notebook, ast
 
 **`Desarrollo de una API con 6 *endpoints* generales para la obtención de información básica del *dataset* ya procesado`**
 * Toolbox: Python, Pandas, FastAPI, Jinja2, Render, Enum, Uvicorn, HTML, Boostrap, js
 
 **`Analisis Exploratorio de Datos (EDA) para investigar el camino al ML`** 
-* Toolbox: Python, Numpy, Pandas, Seaborn, Matplotlib
+* Toolbox: Python, Numpy, Pandas, Seaborn, Matplotlib, wordcloud
 
 **`Desarrollar un Sistema de Recomendación de peliculas empleando ML e incorporarlo a la API como el último *endpoint*`** 
 * Toolbox: Python, Numpy, Pandas, Seaborn, Matplotlib, Sklearn, RE
@@ -162,4 +162,4 @@ Para información más detallada y uso del modelo de manera externa a la API vea
 <p align=center><img src=static/docs.png><p>
 
 **Video Demostrativo:**</h3>
-[**Video demostración**]()
+[**Video demostración**](https://youtu.be/0HeySq-Yx7k)
