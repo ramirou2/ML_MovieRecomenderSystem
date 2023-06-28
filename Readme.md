@@ -125,11 +125,11 @@ Para información más detallada y uso del modelo de manera externa a la API vea
 
 ***Modelo 2 - KNN  k-nearest neighbors -***</h4>
 
-Empleando las *features* *genres, production_companies, release_year, popularity* se empleo un modelo KNN par obtener las 5 peliculas más similares en función de un titulo de consulta. Para esta implementación se empleo aquellas variables que fueran más viables para transformación númerica y que se consideran de relevancia para la selección de proximas visualizaciones. 
+Empleando las *features* *genres, release_year, popularity* se empleo un modelo KNN par obtener las 5 peliculas más similares en función de un titulo de consulta. Para esta implementación se empleo aquellas variables que fueran más viables para transformación númerica y que se consideran de relevancia para la selección de proximas visualizaciones. 
 
 + **Preparación de datos**
 
-Dado que el modelo debe contar con entradas númericas se debió realizar el pasaje de las *features* *genres* y *production_companies* a variables de este tipo, dado que son variables categorías se empleo una metodología de *one-hot encoding*.
+Dado que el modelo debe contar con entradas númericas se debió realizar el pasaje de la *feature* *genres* a variables de este tipo, dado que es una variable categorías se empleo una metodología de *one-hot encoding*.
 
 Por otro lado para las *features* *year_release* y *popularity* se realizo solo un escalado de datos, dada las diferencias en sus rangos de valores.
 

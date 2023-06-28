@@ -105,8 +105,7 @@ def modelos_knn(df, k = 5):
     df : pd.DataFrame()
 
         DataFrame empleado para la generacion de los modelos previos.
-        df[['title', 'genres', 'production_companies', 'release_year', 'popularity']] --> titles --> str genres --> ['genero1', 'genero2',... ]
-        production_companies --> ['prod1', 'prod2',... ] release_year --> int  popularity --> float 
+        df[['title', 'genres', 'production_companies', 'release_year', 'popularity']] --> titles --> str genres --> ['genero1', 'genero2',... ] release_year --> int  popularity --> float 
     k : int
 
         Cantidad de recomendaciones a devolver posteriormente
@@ -121,10 +120,6 @@ def modelos_knn(df, k = 5):
 
         modelo para el one hot encoding de genres
 
-    mlb_prod: sklearn.preprocessing._label.MultiLabelBinarizer
-
-        modelo para el one hot encoding de production_companies
-
     scaler: sklearn.preprocessing._data.StandardScaler
 
         Modelo de escalado de 'release_year', 'popularity'
@@ -137,31 +132,27 @@ def modelos_knn(df, k = 5):
     """
     # Variables de entrada
     X_genres = df['genres']
-    X_prod_companies = df['production_companies']
     X_year_popularity = df[['release_year', 'popularity']]
 
     # Codificar los géneros utilizando one-hot encoding
     mlb_genres = MultiLabelBinarizer()
     X_genres_encoded = pd.DataFrame(mlb_genres.fit_transform(X_genres), columns=mlb_genres.classes_)
 
-    mlb_prod = MultiLabelBinarizer()
-    X_prod_companies_encoded = pd.DataFrame(mlb_prod.fit_transform(X_prod_companies), columns=mlb_prod.classes_)
-
     # Escalar los datos de popularidad y año de lanzamiento
     scaler = StandardScaler()
     X_year_popularity_scaled = scaler.fit_transform(X_year_popularity)
 
     # Combinar todas las variables de entrada
-    X = np.concatenate([X_genres_encoded.values,X_prod_companies_encoded, X_year_popularity_scaled], axis=1)
+    X = np.concatenate([X_genres_encoded.values, X_year_popularity_scaled], axis=1)
 
     # Entrenar el modelo de k-NN
     # Número de vecinos a considerar
     k = k + 1
     model = NearestNeighbors(n_neighbors=k)
     model.fit(X)
-    return model, scaler, mlb_genres, mlb_prod
+    return model, scaler, mlb_genres
 
-def recomendaciones_knn(df, indice, knn, scaler, mlb_genres, mlb_prod):
+def recomendaciones_knn(df, indice, knn, scaler, mlb_genres):
     """
     Peliculas recomendadas en función de la de entrada, se ingresa el indice asociado al DataFrame de entrada, mismo con el que se generan los modelos subsiguientes. 
     Se retorna una lista de titulos recomendados. El
@@ -180,10 +171,6 @@ def recomendaciones_knn(df, indice, knn, scaler, mlb_genres, mlb_prod):
 
         modelo para el one hot encoding de genres
 
-    mlb_prod: sklearn.preprocessing._label.MultiLabelBinarizer
-
-        modelo para el one hot encoding de production_companies
-
     scaler: sklearn.preprocessing._data.StandardScaler
 
         Modelo de escalado de 'release_year', 'popularity'
@@ -191,8 +178,7 @@ def recomendaciones_knn(df, indice, knn, scaler, mlb_genres, mlb_prod):
     df : pd.DataFrame()
 
         DataFrame empleado para la generacion de los modelos previos.
-        df[['title', 'genres', 'production_companies', 'release_year', 'popularity']] --> titles --> str genres --> ['genero1', 'genero2',... ]
-        production_companies --> ['prod1', 'prod2',... ] release_year --> int  popularity --> float 
+        df[['title', 'genres', 'production_companies', 'release_year', 'popularity']] --> titles --> str genres --> ['genero1', 'genero2',... ] release_year --> int  popularity --> float 
     
     Retorno
     -------
@@ -210,16 +196,14 @@ def recomendaciones_knn(df, indice, knn, scaler, mlb_genres, mlb_prod):
     # Ejemplo de consulta de una película y recomendación
     peli = df[df.index == indice]
     query_movie_genres = peli['genres']
-    query_movie_prod = peli['production_companies']
     query_movie_year_popularity = peli[['release_year', 'popularity']]
     query_movie_year_popularity_scaled = scaler.transform(query_movie_year_popularity)
 
     # Codificar los géneros de la película consultada
     query_movie_genres_encoded = mlb_genres.transform(query_movie_genres)
 
-    query_movie_prod_encoded = mlb_prod.transform(query_movie_prod)
     # Combinar las variables de consulta
-    query_movie = np.concatenate( [query_movie_genres_encoded, query_movie_prod_encoded,query_movie_year_popularity_scaled], axis = 1)
+    query_movie = np.concatenate( [query_movie_genres_encoded,query_movie_year_popularity_scaled], axis = 1)
 
     # Obtener los índices de las películas recomendadas
     distances, indices = knn.kneighbors(query_movie)
@@ -230,7 +214,7 @@ def recomendaciones_knn(df, indice, knn, scaler, mlb_genres, mlb_prod):
 if __name__ == '__main__':
     df = pd.read_csv('data/cleanMovies.csv')
     df['genres'] = df.genres.apply( lambda x: eval(x))
-    df['production_companies'] = df.production_companies.apply( lambda x: eval(x))
+    #df['production_companies'] = df.production_companies.apply( lambda x: eval(x))
     indice = df[df['title'] == 'Jumanji' ].index[0]
     df['popularity'] = df['popularity'].fillna(0)
 #USO PARA SIMILITUD
@@ -239,7 +223,7 @@ if __name__ == '__main__':
     # print(obtener_recomendaciones( indice,sim_matrix, df[0:20000],5 ))
     # print(df.iloc[[13337, 15987, 6160, 9495, 8795]][['title', 'genres']])
 # USO PARA KNN
-    model, scaler, mlb_genres, mlb_prod = modelos_knn(df[0:2000], k = 5)
-    titulos = recomendaciones_knn(df[0:2000], indice, model, scaler, mlb_genres, mlb_prod)
+    model, scaler, mlb_genres = modelos_knn(df[0:2000], k = 5)
+    titulos = recomendaciones_knn(df[0:2000], indice, model, scaler, mlb_genres)
     print(titulos)
     #print(type(model),type(scaler), type(mlb_genres), type(mlb_prod) )
