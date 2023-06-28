@@ -1,7 +1,7 @@
 ml-env/
 data/cleanMergedData.csv
 data/credits.csv
-data/movies_datset.csv
+data/movies_dataset.csv
 __pycache__/
 requirements_copy.txt
 pruebas.ipynb
