@@ -154,12 +154,12 @@ Para información más detallada y uso del modelo de manera externa a la API vea
 **API Inicio:**</h3>
 [**API --> api-moviesrecommender**](https://api-moviesrecommender.onrender.com)
 
-<p align=center><img src=https://github.com/ramirou2/ML_MovieRecomenderSystem/tree/master/static/index.png><p>
+<p align=center><img src=static/index.png><p>
 
 **API Documentación:**</h3>
 [**API --> documentación**](https://api-moviesrecommender.onrender.com/docs)
 
-<p align=center><img src=https://github.com/ramirou2/ML_MovieRecomenderSystem/tree/master/static/docs.png><p>
+<p align=center><img src=static/docs.png><p>
 
 **Video Demostrativo:**</h3>
 [**Video demostración**]()
