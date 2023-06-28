@@ -14,6 +14,7 @@ app = FastAPI()
 app.title = "Movies API - ML MoviesRecommenderSystem"
 app.version = "1.0.0"
 
+#Necesario para los logos
 from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -120,17 +121,17 @@ async def cantidad_filmaciones_mes( mes: Mes ):
     -------
     JSON:
 
-        {"month":mes, "movies": int(salida) }
+        {"mes":mes, "peliculas": int(salida) }
     
     Ejemplo
     --------
     >>> cantidad_filmaciones_mes(febrero)
 
-        { "month": "enero", "movies": 5909 }
+        { "mes": "enero", "peliculas": 5909 }
     """
     mesNum = meses[mes]
     salida = df[df['release_date'].dt.month == mesNum].release_date.count()
-    return {"month":mes, "movies": int(salida) }
+    return {"mes":mes, "peliculas": int(salida) }
 
 #Endpoint 2
 class Dia(str, Enum):
@@ -169,7 +170,7 @@ async def cantidad_filmaciones_dia( dia: Dia ):
     -------
     JSON
 
-        {"day":dia, "movies": int(salida) }
+        {"dia":dia, "peliculas": int(salida) }
 
     Ejemplo
     --------
@@ -179,7 +180,7 @@ async def cantidad_filmaciones_dia( dia: Dia ):
     df['dia'] = df['release_date'].apply(lambda x: x.strftime('%A'))
     salida = df[df['dia'] == dias[dia]].dia.count()
     
-    return {"day":dia, "movies": int(salida) }
+    return {"dia":dia, "peliculas": int(salida) }
 
 #Endpoint 3
 @app.get("/pelicula/get_popularidad/{titulo}", tags=['Pelicula'])
@@ -199,15 +200,15 @@ async def score_titulo( titulo: str ):
     -------
     JSON:
 
-        {'title':titulo, 'release_year': release_year, 'popularity':popularity}
+        {'titulo':titulo, 'año_lanzamiento': release_year, 'popularidad':popularity}
 
     Ejemplos
     --------
     >>> score_titulo('Father of the Bride Part II') {caso de exito} \t
-    >>> {'title':'Father of the Bride Part II', 'release_year': 1995, 'popularity':8.39}
+    >>> {'titulo':'Father of the Bride Part II', 'año lanzamiento': 1995, 'popularidad':8.39}
 
     >>> score_titulo('Father of theBride') {contexto de error o no existencia}  \t
-    >>> {'title':'', 'release_year': '', 'popularity':''}
+    >>> {'titulo': Father of theBride, 'mensaje': 'Titulo no encontrado'}
 
     """
     titulo = titulo.title()
@@ -215,9 +216,9 @@ async def score_titulo( titulo: str ):
 
     if not(coincidencias.empty):
         salida_df = coincidencias[['title', 'release_year', 'popularity']].iloc[0]
-        salida_json =  {'title':titulo, 'release_year': int( salida_df['release_year']), 'popularity': round(salida_df['popularity'], 2) } 
+        salida_json =  {'titulo':titulo, 'año_lanzamiento': int( salida_df['release_year']), 'popularidad': round(salida_df['popularity'], 2) } 
     else:
-        salida_json = {'title':'', 'release_year': '', 'popularity':''}
+        salida_json = {'titulo': titulo, 'mensaje': 'Titulo no encontrado'}
 
     return salida_json
 
@@ -240,28 +241,28 @@ async def votos_titulo( titulo: str ):
     -------
     registro:
 
-        {'title':titulo, 'release_year': release_year, 'vote_count': vote_count, 'vote_average':vote_average }
+        {'titulo':titulo, 'año_lanzamiento': release_year, 'conteo_votos': vote_count, 'votos_promedio':vote_average }
     Ejemplo
     --------
     >>> votor_titulo('Jumanji') {caso de exito} \t
-    >>> {'title':'Jumanji', 'release_year:': 1995, 'vote_count': 2413, 'vote_average':6.9 } 
+    >>> {'titulo':'Jumanji', 'año_lanzamiento:': 1995, 'conteo_votos': 2413, 'votos_promedio':6.9 } 
 
     >>> votor_titulo('Father of the Bride Part II') {contexto de no existencia o de votos insuficientes}  \t
-    >>> {'title':'', 'release_year': '', 'vote_count': '', 'vote_average':'' }
+    >>> {'titulo': titulo, 'mensaje': 'No existe en el DataSet actual' }
+    >>> {'titulo': titulo, 'mensaje': 'No supera los 2000 votos minimos' }
     """
     titulo = titulo.title()
 
     coincidencias = df[df['title'] == titulo]
 
-    salida_json = {'title':'', 'release_year': '', 'vote_count': '', 'vote_average':'' }
     if not(coincidencias.empty):
         salida_df = coincidencias[['title', 'release_year', 'vote_count', 'vote_average']].iloc[0] #Me quedo con la primer aparicion
         if salida_df['vote_count'] >= 2000:
-            salida_json = {'title':titulo, 'release_year': int( salida_df['release_year']), 'vote_count': int(salida_df['vote_count']), 'vote_average':round(salida_df['vote_average'], 2) } 
+            salida_json = {'titulo':titulo, 'año_lanzamiento': int( salida_df['release_year']), 'conteo_votos': int(salida_df['vote_count']), 'votos_promedio':round(salida_df['vote_average'], 2) } 
         else:
-            salida_json = {'title': titulo, 'message': 'No supera los 2000 votos minimos' }
+            salida_json = {'titulo': titulo, 'mensaje': 'No supera los 2000 votos minimos' }
     else:
-        salida_json = {'title': titulo, 'message': 'No existe en el DataSet actual' }
+        salida_json = {'titulo': titulo, 'mensaje': 'No existe en el DataSet actual' }
 
     return salida_json
 
@@ -288,10 +289,10 @@ async def get_actor( actor: str ):
     Ejemplo
     --------
     >>> get_actor('Tom Hanks') {caso de exito} \t 
-    >>> {'actor':'Tom Hanks', 'cantidad': 71 , 'retorno_promedio':  2.52,'retorno_total': 3.96}
+    >>> {'actor':'Tom Hanks', 'cantidad_peliculas': 71 , 'retorno_promedio':  2.52,'retorno_total': 3.96}
 
     >>> get_actor('Pepe El grillo') {caso error o sin existencia} \t
-    >>> {'actor':'', 'cantidad': '', 'retorno_promedio': '' , 'retorno_total': ''}
+    >>> {'actor':'Pepe El grillo', 'mensaje': 'Actor no encontrado'}
     """ 
     actor = actor.title()
     indices = []
@@ -300,13 +301,13 @@ async def get_actor( actor: str ):
             indices.append(index)
 
     if len(indices) == 0:
-        salida_json = {'actor':'', 'cantidad': '', 'retorno_promedio': '' , 'retorno_total':''}
+        salida_json = {'actor':actor, 'mensaje': 'Actor no encontrado'}
     else:
         coincidencias = df3.iloc[indices]
         retorno_promedio = coincidencias['return'].mean()
         retorno_total = coincidencias['return'].sum() # Asi se pidio en las consultas el retorno total
         #retorno_total = coincidencias['revenue'].sum() / coincidencias['budget'].sum()
-        salida_json = {'actor':actor, 'cantidad': len(indices), 'retorno_promedio': round(retorno_promedio, 2), 'retorno_total':round(retorno_total, 2)}
+        salida_json = {'actor':actor, 'cantidad_peliculas': len(indices), 'retorno_promedio': round(retorno_promedio, 2), 'retorno_total':round(retorno_total, 2)}
     return salida_json 
 
 #Endpoint 6
@@ -328,17 +329,17 @@ async def get_director(director: str):
     ----------
     JSON
 
-        { 'director':'director', 'return': round(retorno, 2),  'movies':  [{pelicula1}, {pelicula2} ....]}.
+        { 'director':'director', 'retorno': round(retorno, 2),  'peliculas':  [{pelicula1}, {pelicula2} ....]}.
 
     Ejemplo
     --------
     >>> get_director('John Lasseter') {caso de exito} \t
-    >>> { "director": "John Lasseter", "return": 4.03,
-        "movies": [ { "title": "Toy Story", "release_date": "1995-10-30", "budget": 30000000, "revenue": 373554033 },
-        { "title": "A Bug'S Life", "release_date": "1998-11-25", "budget": 120000000, "revenue": 363258859 }, ...]
+    >>> { "director": "John Lasseter", "retorno": 4.03,
+        "peliculas": [ { "titulo": "Toy Story", "año_lanzamiento": "1995-10-30", "presupuesto": 30000000, "ganancia": 373554033 },
+        { "titulo": "A Bug'S Life", "año_lanzamiento": "1998-11-25", "presupuesto": 120000000, "ganancia": 363258859 }, ...]
 
     >>> get_director('Pepe el grillo') {caso de inexistencia} \t
-    >>> { 'director':'', 'return': '',  'movies': ''}
+    >>> { 'director':'Pepe el grillo', 'mensaje': 'Director no encontrado'}
     """
     director = director.title()
     indices = []
@@ -357,11 +358,11 @@ async def get_director(director: str):
         
         #SALIDA EN VERSION LISTAS
         #salida = { 'director':director, 'return': round(retorno_total, 2),  'titles': titulos, 'release_dates': fechas_estreno, 'budgets': presupuesto, 'revenues':ganancia}
-        pelis_json = [{'title': e1, 'release_date': e2, 'budget': e3, 'revenue': e4} for e1, e2, e3,e4 in zip(titulos, fechas_estreno, presupuesto, ganancia)]
+        pelis_json = [{'titulo': e1, 'año_lanzamiento': e2, 'presupuesto': e3, 'ganancia': e4} for e1, e2, e3,e4 in zip(titulos, fechas_estreno, presupuesto, ganancia)]
         
-        salida = { 'director':director, 'return': round(retorno_total, 2),  'movies': pelis_json}
+        salida = { 'director':director, 'retorno': round(retorno_total, 2),  'peliculas': pelis_json}
     else:
-        salida = { 'director':'', 'return': '',  'titles': '', 'release_dates': '', 'budgets': '', 'revenues': ''}
+        salida = { 'director':director, 'mensaje': 'Director no encotrado'}
     return salida
 
 #Sistema de recomendacion
@@ -386,21 +387,21 @@ async def get_recomendacion(titulo: str):
     Ejemplo
     --------
     >>> get_recomendacion('Jumanji') {caso de exito} \t
-    >>> 
+    >>> {"titulo":"Jumanji","titulos_recomendados":["Existenz","Dungeons & Dragons","Any Given Sunday","Manhunter","A Monkey'S Tale"]}
 
     >>> get_director('Pepe el grillo') {caso de inexistencia} \t
-    >>> { 'titles': []}
+    >>> {'title': 'Pepe El Grillo',  'mensaje': 'Titulo no encontrado'}
     
     """
     
     titulo = titulo.title()
     coincidencias = entrada_ml[entrada_ml['title'] == titulo]
     if coincidencias.empty:
-        salida = {'title': '',  'recommended titles': []}
+        salida = {'title': titulo,  'mensaje': 'Titulo no encontrado'}
     else:
         indice = coincidencias.index[0]
 
         recomendadas = obtener_recomendaciones(df = entrada_ml, matriz_sim = similitudes, indice_pelicula = indice,top_n = 5).tolist()
 
-        salida = {'title': titulo, 'recommended titles': recomendadas}
+        salida = {'titulo': titulo, 'titulos_recomendados': recomendadas}
     return salida
